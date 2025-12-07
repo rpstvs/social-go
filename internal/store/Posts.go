@@ -16,6 +16,7 @@ type Post struct {
 	Tags      []string  `json:"tags"`
 	CreatedAt string    `json:"created_at"`
 	UpdatedAt string    `json:"updated_at"`
+	Version   string    `json:"version"`
 	Comments  []Comment `json:"comments"`
 }
 
@@ -29,6 +30,8 @@ func (s *PostsStore) Create(ctx context.Context, post *Post) error {
 	VALUES($1,$2,$3,$4)
 	RETURNING id, created_at, updated_at
 	`
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
 	err := s.db.QueryRowContext(ctx, query, post.Content, post.Title, post.UserID, pq.Array(post.Tags)).Scan(&post.ID, &post.CreatedAt, &post.UpdatedAt)
 
 	if err != nil {
@@ -45,7 +48,10 @@ func (s *PostsStore) GetById(ctx context.Context, id int64) (*Post, error) {
 	SELECT * from posts
 	WHERE id = $1`
 
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&post.ID, &post.Content, &post.Title, &post.UserID, pq.Array(&post.Tags), &post.CreatedAt, &post.UpdatedAt)
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&post.ID, &post.Content, &post.Title, &post.UserID, pq.Array(&post.Tags), &post.Version, &post.CreatedAt, &post.UpdatedAt)
 
 	if err != nil {
 		switch {
@@ -58,4 +64,56 @@ func (s *PostsStore) GetById(ctx context.Context, id int64) (*Post, error) {
 		}
 	}
 	return &post, nil
+}
+
+func (s *PostsStore) DeletePost(ctx context.Context, id int64) error {
+	query := `
+		DELETE FROM posts
+		WHERE id = $1;
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	res, err := s.db.ExecContext(ctx, query, id)
+
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+func (s *PostsStore) UpdatePost(ctx context.Context, post *Post) error {
+	query := `
+		UPDATE posts
+		SET title = $1, content =$2, version = version +1
+		WHERE id = $3 AND version = $4
+		RETURNING version;
+	`
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+	err := s.db.QueryRowContext(ctx, query, post.Title, post.Content, post.ID, post.Version).Scan(&post.Version)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrNotFound
+		default:
+			return err
+		}
+
+	}
+
+	return nil
 }
