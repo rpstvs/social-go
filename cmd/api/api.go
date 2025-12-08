@@ -6,25 +6,46 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rpstvs/social/internal/store"
 )
 
 type application struct {
 	config config
+	store  store.Storage
 }
 
 type config struct {
 	addr string
+	db   dbConfig
 }
 
-func NewConfig(addr string) config {
+type dbConfig struct {
+	addrDB      string
+	maxOpenConn int
+	maxIdleConn int
+	maxIdleTime string
+}
+
+func NewConfig(addr, addrDB, maxIdleTime string, maxOpenConn, maxIdleConn int) config {
 	return config{
 		addr: addr,
+		db:   NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
 	}
 }
 
-func NewApplication(config config) *application {
+func NewDBConfig(addrDB, maxIdleTime string, maxOpenCon, maxIdleConn int) dbConfig {
+	return dbConfig{
+		addrDB:      addrDB,
+		maxOpenConn: maxOpenCon,
+		maxIdleConn: maxIdleConn,
+		maxIdleTime: maxIdleTime,
+	}
+}
+
+func NewApplication(config config, storage store.Storage) *application {
 	return &application{
 		config: config,
+		store:  storage,
 	}
 }
 
@@ -44,6 +65,27 @@ func (app *application) mount() http.Handler {
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.HealthCheckHandler)
+
+		r.Route("/posts", func(r chi.Router) {
+			r.Post("/", app.CreatePostHandler)
+
+			r.Route("/{postsID}", func(r chi.Router) {
+				r.Use(app.postsContextMiddleware)
+
+				r.Get("/", app.GetPostHandler)
+				r.Delete("/", app.DeletePostHandler)
+				r.Patch("/", app.UpdatePostHandler)
+			})
+
+		})
+
+		r.Route("/users", func(r chi.Router) {
+			r.Route("/{userid}", func(r chi.Router) {
+				r.Get("/", app.getUserHandler)
+				r.Put("/follow", app.followUserHandler)
+				r.Put("/unfollow", app.unfollowUserHandler)
+			})
+		})
 	})
 
 	return r
