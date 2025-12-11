@@ -1,12 +1,11 @@
 package main
 
 import (
-	"log"
-
 	"github.com/joho/godotenv"
 	"github.com/rpstvs/social/internal/db"
 	"github.com/rpstvs/social/internal/env"
 	"github.com/rpstvs/social/internal/store"
+	"go.uber.org/zap"
 )
 
 const DEFAULT_PORT = ":8080"
@@ -28,19 +27,21 @@ func main() {
 
 	db, err := db.New(config.db.addrDB, config.db.maxOpenConn, config.db.maxIdleConn, config.db.maxIdleTime)
 
+	logger := zap.Must(zap.NewProduction()).Sugar()
+	defer logger.Sync()
 	if err != nil {
-		log.Panic(err)
+		logger.Fatal(err)
 	}
 
 	defer db.Close()
 
-	log.Println("Connection to DB established.")
+	logger.Info("Connection to DB established.")
 
 	store := store.NewStorage(db)
 
-	app := NewApplication(config, store)
+	app := NewApplication(config, store, logger)
 
 	mux := app.mount()
 
-	log.Fatal(app.run(mux))
+	logger.Fatal(app.run(mux))
 }

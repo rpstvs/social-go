@@ -1,17 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rpstvs/social/internal/store"
+	HttpSwagger "github.com/swaggo/http-swagger/v2"
+	"go.uber.org/zap"
 )
 
 type application struct {
 	config config
 	store  store.Storage
+	logger *zap.SugaredLogger
 }
 
 type config struct {
@@ -42,10 +46,11 @@ func NewDBConfig(addrDB, maxIdleTime string, maxOpenCon, maxIdleConn int) dbConf
 	}
 }
 
-func NewApplication(config config, storage store.Storage) *application {
+func NewApplication(config config, storage store.Storage, logger *zap.SugaredLogger) *application {
 	return &application{
 		config: config,
 		store:  storage,
+		logger: logger,
 	}
 }
 
@@ -66,6 +71,9 @@ func (app *application) mount() http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.HealthCheckHandler)
 
+		docsUrl := fmt.Sprintf("%s/swagger/doc.json", app.config.addr)
+		r.Get("/swagger", HttpSwagger.Handler(HttpSwagger.URL(docsUrl)))
+
 		r.Route("/posts", func(r chi.Router) {
 			r.Post("/", app.CreatePostHandler)
 
@@ -85,7 +93,11 @@ func (app *application) mount() http.Handler {
 				r.Put("/follow", app.followUserHandler)
 				r.Put("/unfollow", app.unfollowUserHandler)
 			})
+			r.Group(func(r chi.Router) {
+				r.Get("/feed", app.getUserFeedHandler)
+			})
 		})
+
 	})
 
 	return r
