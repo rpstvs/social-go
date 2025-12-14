@@ -19,8 +19,15 @@ type application struct {
 }
 
 type config struct {
-	addr string
-	db   dbConfig
+	addr   string
+	db     dbConfig
+	env    string
+	apiURL string
+	mail   mailConfig
+}
+
+type mailConfig struct {
+	exp time.Duration
 }
 
 type dbConfig struct {
@@ -30,10 +37,11 @@ type dbConfig struct {
 	maxIdleTime string
 }
 
-func NewConfig(addr, addrDB, maxIdleTime string, maxOpenConn, maxIdleConn int) config {
+func NewConfig(addr, addrDB, maxIdleTime string, maxOpenConn, maxIdleConn int, mailExp time.Duration) config {
 	return config{
 		addr: addr,
 		db:   NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
+		mail: NewMailConfig(mailExp),
 	}
 }
 
@@ -51,6 +59,12 @@ func NewApplication(config config, storage store.Storage, logger *zap.SugaredLog
 		config: config,
 		store:  storage,
 		logger: logger,
+	}
+}
+
+func NewMailConfig(mailExp time.Duration) mailConfig {
+	return mailConfig{
+		exp: mailExp,
 	}
 }
 
@@ -96,6 +110,10 @@ func (app *application) mount() http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Get("/feed", app.getUserFeedHandler)
 			})
+		})
+
+		r.Route("/authentication", func(r chi.Router) {
+			r.Post("/user", app.registerUserHandler)
 		})
 
 	})
