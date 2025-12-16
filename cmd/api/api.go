@@ -19,11 +19,21 @@ type application struct {
 }
 
 type config struct {
-	addr   string
-	db     dbConfig
-	env    string
-	apiURL string
-	mail   mailConfig
+	addr       string
+	db         dbConfig
+	env        string
+	apiURL     string
+	mail       mailConfig
+	authConfig AuthConfig
+}
+
+type AuthConfig struct {
+	basic BasicConfig
+}
+
+type BasicConfig struct {
+	username string
+	password string
 }
 
 type mailConfig struct {
@@ -37,11 +47,21 @@ type dbConfig struct {
 	maxIdleTime string
 }
 
-func NewConfig(addr, addrDB, maxIdleTime string, maxOpenConn, maxIdleConn int, mailExp time.Duration) config {
+func NewConfig(addr, addrDB, maxIdleTime, username, password string, maxOpenConn, maxIdleConn int, mailExp time.Duration) config {
 	return config{
-		addr: addr,
-		db:   NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
-		mail: NewMailConfig(mailExp),
+		addr:       addr,
+		db:         NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
+		mail:       NewMailConfig(mailExp),
+		authConfig: NewAuthConfig(username, password),
+	}
+}
+
+func NewAuthConfig(username, password string) AuthConfig {
+	return AuthConfig{
+		basic: BasicConfig{
+			username: username,
+			password: password,
+		},
 	}
 }
 
@@ -83,7 +103,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Route("/v1", func(r chi.Router) {
-		r.Get("/health", app.HealthCheckHandler)
+		r.With(app.BasicAuthMiddleware()).Get("/health", app.HealthCheckHandler)
 
 		docsUrl := fmt.Sprintf("%s/swagger/doc.json", app.config.addr)
 		r.Get("/swagger", HttpSwagger.Handler(HttpSwagger.URL(docsUrl)))
@@ -102,6 +122,7 @@ func (app *application) mount() http.Handler {
 		})
 
 		r.Route("/users", func(r chi.Router) {
+			r.Put("/activate/{activate}", app.activateUserHandler)
 			r.Route("/{userid}", func(r chi.Router) {
 				r.Get("/", app.getUserHandler)
 				r.Put("/follow", app.followUserHandler)

@@ -15,6 +15,11 @@ type RegisterUserPayload struct {
 	Email    string `json:"email" validate:"required, email, max=255"`
 }
 
+type UserWithToken struct {
+	*store.User
+	Token string `json:"token"`
+}
+
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var payload RegisterUserPayload
 
@@ -64,7 +69,12 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := app.jsonResponse(w, r, nil); err != nil {
+	UserWithToken := UserWithToken{
+		User:  user,
+		Token: plainToken,
+	}
+
+	if err := app.jsonResponse(w, http.StatusCreated, UserWithToken); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
