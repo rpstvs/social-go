@@ -7,15 +7,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rpstvs/social/internal/auth"
 	"github.com/rpstvs/social/internal/store"
 	HttpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
 
 type application struct {
-	config config
-	store  store.Storage
-	logger *zap.SugaredLogger
+	config        config
+	store         store.Storage
+	logger        *zap.SugaredLogger
+	authenticator auth.Authenticator
 }
 
 type config struct {
@@ -29,6 +31,12 @@ type config struct {
 
 type AuthConfig struct {
 	basic BasicConfig
+	token TokenConfig
+}
+
+type TokenConfig struct {
+	secret string
+	exp    time.Duration
 }
 
 type BasicConfig struct {
@@ -47,20 +55,24 @@ type dbConfig struct {
 	maxIdleTime string
 }
 
-func NewConfig(addr, addrDB, maxIdleTime, username, password string, maxOpenConn, maxIdleConn int, mailExp time.Duration) config {
+func NewConfig(addr, addrDB, maxIdleTime, username, password, secret string, maxOpenConn, maxIdleConn int, mailExp, expToken time.Duration) config {
 	return config{
 		addr:       addr,
 		db:         NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
 		mail:       NewMailConfig(mailExp),
-		authConfig: NewAuthConfig(username, password),
+		authConfig: NewAuthConfig(username, password, secret, expToken),
 	}
 }
 
-func NewAuthConfig(username, password string) AuthConfig {
+func NewAuthConfig(username, password, secret string, exp time.Duration) AuthConfig {
 	return AuthConfig{
 		basic: BasicConfig{
 			username: username,
 			password: password,
+		},
+		token: TokenConfig{
+			secret: secret,
+			exp:    exp,
 		},
 	}
 }
@@ -76,9 +88,10 @@ func NewDBConfig(addrDB, maxIdleTime string, maxOpenCon, maxIdleConn int) dbConf
 
 func NewApplication(config config, storage store.Storage, logger *zap.SugaredLogger) *application {
 	return &application{
-		config: config,
-		store:  storage,
-		logger: logger,
+		config:        config,
+		store:         storage,
+		logger:        logger,
+		authenticator: auth.NewJwtAuthenticator(config.authConfig.token.secret, "gopherSocial", "gopherSocial"),
 	}
 }
 
@@ -109,6 +122,7 @@ func (app *application) mount() http.Handler {
 		r.Get("/swagger", HttpSwagger.Handler(HttpSwagger.URL(docsUrl)))
 
 		r.Route("/posts", func(r chi.Router) {
+			r.Use(app.AuthTokenMiddleware())
 			r.Post("/", app.CreatePostHandler)
 
 			r.Route("/{postsID}", func(r chi.Router) {
@@ -135,6 +149,7 @@ func (app *application) mount() http.Handler {
 
 		r.Route("/authentication", func(r chi.Router) {
 			r.Post("/user", app.registerUserHandler)
+			r.Post("/token", app.createTokenHandler)
 		})
 
 	})
