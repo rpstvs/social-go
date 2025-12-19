@@ -126,6 +126,7 @@ func (app *application) mount() http.Handler {
 			r.Post("/", app.CreatePostHandler)
 
 			r.Route("/{postsID}", func(r chi.Router) {
+
 				r.Use(app.postsContextMiddleware)
 
 				r.Get("/", app.GetPostHandler)
@@ -138,11 +139,13 @@ func (app *application) mount() http.Handler {
 		r.Route("/users", func(r chi.Router) {
 			r.Put("/activate/{activate}", app.activateUserHandler)
 			r.Route("/{userid}", func(r chi.Router) {
+				r.Use(app.AuthTokenMiddleware())
 				r.Get("/", app.getUserHandler)
 				r.Put("/follow", app.followUserHandler)
 				r.Put("/unfollow", app.unfollowUserHandler)
 			})
 			r.Group(func(r chi.Router) {
+				r.Use(app.AuthTokenMiddleware())
 				r.Get("/feed", app.getUserFeedHandler)
 			})
 		})

@@ -48,8 +48,12 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request) {
 	user := getUserFromContext(r)
-	UserFollowing := 400
-	err := app.store.Followers.Follow(r.Context(), user.ID, int64(UserFollowing))
+	followedID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	err = app.store.Followers.Follow(r.Context(), user.ID, int64(followedID))
 
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -63,8 +67,12 @@ func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request
 
 func (app *application) unfollowUserHandler(w http.ResponseWriter, r *http.Request) {
 	user := getUserFromContext(r)
-	UserFollowing := 400
-	err := app.store.Followers.Unfollow(r.Context(), user.ID, int64(UserFollowing))
+	unfollowedID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	err = app.store.Followers.Unfollow(r.Context(), user.ID, int64(unfollowedID))
 
 	if err != nil {
 		app.internalServerError(w, r, err)
