@@ -24,7 +24,9 @@ type Storage struct {
 	Users interface {
 		Create(ctx context.Context, user *User) error
 		GetById(ctx context.Context, id int64) (*User, error)
+		GetByEmail(ctx context.Context, email string) (*User, error)
 		CreateAndInvite(ctx context.Context, user *User, token string) error
+		Activate(ctx context.Context, token string) error
 	}
 	Comments interface {
 		GetById(ctx context.Context, id int64) (*[]Comment, error)
@@ -43,4 +45,19 @@ func NewStorage(db *sql.DB) Storage {
 		Comments:  &CommentsStore{db: db},
 		Followers: &FollowersStore{db: db},
 	}
+}
+
+func withTx(db *sql.DB, ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
+
+	if err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }

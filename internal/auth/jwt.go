@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"fmt"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -31,5 +33,17 @@ func (a *jwtAuthenticator) GenerateToken(claims jwt.Claims) (string, error) {
 }
 
 func (a *jwtAuthenticator) ValidateToken(token string) (*jwt.Token, error) {
-	return nil, nil
+
+	return jwt.Parse(token, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method %v", t.Method)
+
+		}
+		return []byte(a.secret), nil
+	},
+		jwt.WithExpirationRequired(),
+		jwt.WithAudience(a.aud),
+		jwt.WithIssuer(a.issuer),
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}),
+	)
 }
