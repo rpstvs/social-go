@@ -8,6 +8,11 @@ SET role_id = (
         from roles
         WHERE name = 'user'
     );
+ALTER TABLE users
+ALTER COLUMN role_id DROP DEFAULT;
+ALTER TABLE users
+ALTER COLUMN role_id
+SET NOT NULL;
 -- +goose StatementEnd
 -- +goose Down
 -- +goose StatementBegin

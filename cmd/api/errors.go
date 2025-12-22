@@ -17,6 +17,12 @@ func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Reques
 	RespondWithError(http.StatusBadRequest, w, err.Error())
 }
 
+func (app *application) forbiddenResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.logger.Warnf("bad request", "method", r.Method, "path", r.URL.Path, "error", err)
+
+	RespondWithError(http.StatusForbidden, w, "forbidden")
+}
+
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request, err error) {
 
 	app.logger.Warnf("response not found", "method", r.Method, "path", r.URL.Path, "error", err)
