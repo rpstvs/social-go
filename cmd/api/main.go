@@ -3,10 +3,12 @@ package main
 import (
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"github.com/rpstvs/social/internal/db"
 	"github.com/rpstvs/social/internal/env"
 	"github.com/rpstvs/social/internal/store"
+	"github.com/rpstvs/social/internal/store/cache"
 	"go.uber.org/zap"
 )
 
@@ -45,9 +47,16 @@ func main() {
 
 	logger.Info("Connection to DB established.")
 
+	var rdb *redis.Client
+
+	if config.redisCfg.enabled {
+		rdb = cache.NewRedisClient(config.redisCfg.addr, config.redisCfg.password, config.redisCfg.database)
+		logger.Info("redis connection established")
+	}
+
 	store := store.NewStorage(db)
 
-	app := NewApplication(config, store, logger)
+	app := NewApplication(config, store, logger, rdb)
 
 	mux := app.mount()
 

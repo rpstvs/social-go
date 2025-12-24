@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rpstvs/social/internal/auth"
 	"github.com/rpstvs/social/internal/store"
+	"github.com/rpstvs/social/internal/store/cache"
 	HttpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
@@ -16,6 +17,7 @@ import (
 type application struct {
 	config        config
 	store         store.Storage
+	cacheStorage  cache.Storage
 	logger        *zap.SugaredLogger
 	authenticator auth.Authenticator
 }
@@ -27,6 +29,7 @@ type config struct {
 	apiURL     string
 	mail       mailConfig
 	authConfig AuthConfig
+	redisCfg   RedisConfig
 }
 
 type AuthConfig struct {
@@ -44,6 +47,13 @@ type BasicConfig struct {
 	password string
 }
 
+type RedisConfig struct {
+	addr     string
+	password string
+	database int
+	enabled  bool
+}
+
 type mailConfig struct {
 	exp time.Duration
 }
@@ -55,12 +65,18 @@ type dbConfig struct {
 	maxIdleTime string
 }
 
-func NewConfig(addr, addrDB, maxIdleTime, username, password, secret string, maxOpenConn, maxIdleConn int, mailExp, expToken time.Duration) config {
+func NewConfig(addr, addrRedis, addrDB, maxIdleTime, username, password, pwRedis, secret string, maxOpenConn, maxIdleConn, dbRedis int, mailExp, expToken time.Duration, redisEnabled bool) config {
 	return config{
 		addr:       addr,
 		db:         NewDBConfig(addrDB, maxIdleTime, maxOpenConn, maxIdleConn),
 		mail:       NewMailConfig(mailExp),
 		authConfig: NewAuthConfig(username, password, secret, expToken),
+		redisCfg: RedisConfig{
+			addr:     addrRedis,
+			password: pwRedis,
+			database: dbRedis,
+			enabled:  redisEnabled,
+		},
 	}
 }
 
@@ -86,10 +102,11 @@ func NewDBConfig(addrDB, maxIdleTime string, maxOpenCon, maxIdleConn int) dbConf
 	}
 }
 
-func NewApplication(config config, storage store.Storage, logger *zap.SugaredLogger) *application {
+func NewApplication(config config, storage store.Storage, cacheStorage cache.Storage, logger *zap.SugaredLogger) *application {
 	return &application{
 		config:        config,
 		store:         storage,
+		cacheStorage:  cacheStorage,
 		logger:        logger,
 		authenticator: auth.NewJwtAuthenticator(config.authConfig.token.secret, "gopherSocial", "gopherSocial"),
 	}

@@ -86,7 +86,7 @@ func (app *application) AuthTokenMiddleware() func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 
-			user, err := app.store.Posts.GetById(ctx, userId)
+			user, err := app.getUser(ctx, userId)
 
 			if err != nil {
 				app.UnauthorizedErrorResponse(w, r, err)
@@ -118,7 +118,7 @@ func (app *application) checkPostOwnership(requiredRole, role string, handler ht
 		}
 
 		if !allowed {
-			app.forbiddenResponse(w, r)
+			app.forbiddenResponse(w, r, fmt.Errorf("forbidden"))
 			return
 		}
 
@@ -135,4 +135,30 @@ func (app *application) checkRolePrecedence(ctx context.Context, user *store.Use
 	}
 
 	return int(user.Role.ID) >= role.Level, nil
+}
+
+func (app *application) getUser(ctx context.Context, userId int64) (*store.User, error) {
+
+	redisUser, err := app.cacheStorage.Users.Get(ctx, userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if redisUser == nil {
+		dbUser, err := app.store.Users.GetById(ctx, userId)
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = app.cacheStorage.Users.Set(ctx, dbUser)
+
+		if err != nil {
+			app.logger.Warn("couldnt add user to cache")
+		}
+		return dbUser, nil
+	}
+
+	return redisUser, nil
 }

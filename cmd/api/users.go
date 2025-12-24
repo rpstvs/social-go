@@ -19,8 +19,8 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
-	if err != nil {
-		RespondWithError(http.StatusInternalServerError, w, err.Error())
+	if err != nil || id < 1 {
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
