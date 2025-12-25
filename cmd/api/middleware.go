@@ -139,6 +139,10 @@ func (app *application) checkRolePrecedence(ctx context.Context, user *store.Use
 
 func (app *application) getUser(ctx context.Context, userId int64) (*store.User, error) {
 
+	if !app.config.redisCfg.enabled {
+		return app.store.Users.GetById(ctx, userId)
+	}
+
 	redisUser, err := app.cacheStorage.Users.Get(ctx, userId)
 
 	if err != nil {

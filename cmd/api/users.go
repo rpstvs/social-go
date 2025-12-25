@@ -24,7 +24,7 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userHandler, err := app.store.Users.GetById(r.Context(), id)
+	user, err := app.getUser(r.Context(), id)
 
 	if err != nil {
 		switch {
@@ -39,7 +39,7 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := app.jsonResponse(w, http.StatusAccepted, userHandler); err != nil {
+	if err := app.jsonResponse(w, http.StatusAccepted, user); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
