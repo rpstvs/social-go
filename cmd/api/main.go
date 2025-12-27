@@ -55,8 +55,9 @@ func main() {
 	}
 
 	store := store.NewStorage(db)
+	cacheStore := cache.NewRedisStorage(rdb)
 
-	app := NewApplication(config, store, logger, rdb)
+	app := NewApplication(config, store, cacheStore, logger)
 
 	mux := app.mount()
 
