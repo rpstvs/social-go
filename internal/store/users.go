@@ -196,7 +196,7 @@ func (u *UsersStore) getUserFromInvitation(ctx context.Context, tx *sql.Tx, toke
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 	user := &User{}
-	err := tx.QueryRowContext(ctx, query, hashToken, time.Now()).Scan(user.ID, user.Username, user.Email, user.CreatedAt, user.isActive)
+	err := tx.QueryRowContext(ctx, query, hashToken, time.Now()).Scan(user.ID, user.Username, user.Email, user.CreatedAt, user.IsActive)
 
 	if err != nil {
 		switch err {

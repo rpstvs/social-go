@@ -12,6 +12,8 @@ import (
 	"github.com/rpstvs/social/internal/store"
 )
 
+const userCtx = "user"
+
 func (app *application) BasicAuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +101,7 @@ func (app *application) AuthTokenMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-func (app *application) checkPostOwnership(requiredRole, role string, handler http.HandlerFunc) http.HandlerFunc {
+func (app *application) checkPostOwnership(requiredRole string, handler http.HandlerFunc) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := getUserFromContext(r)
@@ -125,6 +127,17 @@ func (app *application) checkPostOwnership(requiredRole, role string, handler ht
 		handler.ServeHTTP(w, r)
 	})
 
+}
+
+func (app *application) RateLimiterMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if app.config.rateLimiter.Enabled {
+			if allow, retryAfter := app.rateLimiter.Allow(r.RemoteAddr); !allow {
+				app.rateLimitExceedResponse(w, r, retryAfter.String())
+				return
+			}
+		}
+	})
 }
 
 func (app *application) checkRolePrecedence(ctx context.Context, user *store.User, requiredRole string) (bool, error) {

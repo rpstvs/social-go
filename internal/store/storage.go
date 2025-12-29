@@ -22,10 +22,10 @@ type Storage struct {
 		GetUserFeed(ctx context.Context, id int64, Pag PaginatedFeedQuery) ([]PostWithMetaData, error)
 	}
 	Users interface {
-		Create(ctx context.Context, user *User) error
+		Create(ctx context.Context, tx *sql.Tx, user *User) error
 		GetById(ctx context.Context, id int64) (*User, error)
 		GetByEmail(ctx context.Context, email string) (*User, error)
-		CreateAndInvite(ctx context.Context, user *User, token string) error
+		CreateAndInvite(ctx context.Context, user *User, token string, exp time.Duration) error
 		Activate(ctx context.Context, token string) error
 	}
 	Comments interface {

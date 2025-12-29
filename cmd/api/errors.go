@@ -42,3 +42,12 @@ func (app *application) UnauthorizedBasicErrorResponse(w http.ResponseWriter, r 
 	w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 	RespondWithError(http.StatusUnauthorized, w, "unauthorized")
 }
+
+func (app *application) rateLimitExceedResponse(w http.ResponseWriter, r *http.Request, retryAfter string) {
+
+	app.logger.Warnf("rate limit exceeded", "method", r.Method, "path", r.URL.Path, "error", retryAfter)
+
+	w.Header().Set("Retry-After", retryAfter)
+
+	RespondWithError(http.StatusTooManyRequests, w, retryAfter)
+}

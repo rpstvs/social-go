@@ -17,7 +17,7 @@ type PaginatedFeedQuery struct {
 	Until  string   `json:"until"`
 }
 
-func (fq PaginatedFeedQuery) Parse(r http.Request) (PaginatedFeedQuery, error) {
+func (fq PaginatedFeedQuery) Parse(r *http.Request) (PaginatedFeedQuery, error) {
 	qs := r.URL.Query()
 
 	limit := qs.Get("limit")

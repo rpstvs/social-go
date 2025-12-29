@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rpstvs/social/internal/store"
+	"github.com/stretchr/testify/mock"
 )
 
 func NewMockCache() Storage {
@@ -13,10 +14,12 @@ func NewMockCache() Storage {
 }
 
 type MockCacheStorage struct {
+	mock.Mock
 }
 
-func (m *MockCacheStorage) Get(context.Context, int64) (*store.User, error) {
-	return &store.User{}, nil
+func (m *MockCacheStorage) Get(ctx context.Context, id int64) (*store.User, error) {
+	args := m.Called(id)
+	return &store.User{}, args.Error(1)
 }
 func (m *MockCacheStorage) Set(context.Context, *store.User) error {
 	return nil

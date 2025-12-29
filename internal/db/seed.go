@@ -23,7 +23,7 @@ func Seed(store store.Storage, db *sql.DB) {
 	tx, _ := db.BeginTx(ctx, nil)
 
 	for _, user := range users {
-		if err := store.Users.Create(ctx, user); err != nil {
+		if err := store.Users.Create(ctx, tx, user); err != nil {
 			_ = tx.Rollback()
 			return
 		}
@@ -93,4 +93,5 @@ func generateComments(num int, users []*store.User, posts []*store.Post) []*stor
 			Content: Comments[rand.IntN(len(Comments))],
 		}
 	}
+	return comments
 }

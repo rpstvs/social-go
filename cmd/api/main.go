@@ -1,6 +1,8 @@
 package main
 
 import (
+	"expvar"
+	"runtime"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -20,6 +22,9 @@ const DEFAULT_DB_MAX_IDLE_CONN = 30
 const DEFAULT_EXP_MAIL_INVITATION = 3 * time.Hour
 const DEFAULT_USERNAME = "rui"
 const DEFAULT_PASSWORD = "oliveira"
+const DEFAULT_REDIS_ADDR = "localhost"
+const DEFAULT_REDIS_PW = "admin"
+const DEFAULT_EXP_TOKEN = 3 * time.Hour
 
 func main() {
 
@@ -27,13 +32,19 @@ func main() {
 
 	config := NewConfig(
 		env.GetString("ADDR", DEFAULT_PORT),
+		env.GetString("REDIS_ADDR", DEFAULT_REDIS_ADDR),
 		env.GetString("DB_ADDR", DEFAULT_DB_ADDR),
 		env.GetString("DB_MAX_IDLE_TIME", DEFAULT_DB_MAXIDLETIME),
 		DEFAULT_USERNAME,
 		DEFAULT_PASSWORD,
+		DEFAULT_REDIS_PW,
+		"cenas",
 		env.GetInt("DB_MAX_OPEN_CONNS", DEFAULT_DB_MAX_OPENCONNS),
 		env.GetInt("DB_MAX_IDLE_CONNS", DEFAULT_DB_MAX_IDLE_CONN),
-		DEFAULT_EXP_MAIL_INVITATION)
+		0,
+		DEFAULT_EXP_TOKEN,
+		DEFAULT_EXP_MAIL_INVITATION,
+		true)
 
 	db, err := db.New(config.db.addrDB, config.db.maxOpenConn, config.db.maxIdleConn, config.db.maxIdleTime)
 
@@ -58,6 +69,14 @@ func main() {
 	cacheStore := cache.NewRedisStorage(rdb)
 
 	app := NewApplication(config, store, cacheStore, logger)
+
+	expvar.NewString("version").Set("0.0.0.1")
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
 
 	mux := app.mount()
 
